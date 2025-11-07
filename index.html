@@ -12,6 +12,11 @@
             font-family: 'Inter', sans-serif;
             background-color: #1a1a1a; /* Dunkler Hintergrund, Darts-Thema */
             color: #f0f0f0;
+            /* Zentriert den Inhalt und stellt sicher, dass er die volle Breite nutzt */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%; /* Wichtig für die volle Breite */
         }
         .score-button {
             transition: all 0.1s;
@@ -52,9 +57,10 @@
         }
     </style>
 </head>
-<body class="p-4 sm:p-6 min-h-screen flex flex-col items-center">
+<body class="p-4 sm:p-6 min-h-screen">
 
-    <div id="app" class="w-full max-w-4xl">
+    <!-- HAUPTCONTAINER: max-w-4xl entfernt, um volle Breite zu ermöglichen, aber eine sinnvolle maximale Breite beibehalten -->
+    <div id="app" class="w-full max-w-full lg:max-w-6xl">
         <h1 class="text-3xl font-extrabold mb-8 text-center text-white flex items-center justify-center">
             <span class="mr-3">🎯</span>
             Darts Checkout Rechner
@@ -244,7 +250,7 @@
             favoriteDoublesArray = [];
             // Speichert das leere Array persistent
             localStorage.setItem('dartsFavoritesArray', JSON.stringify(favoriteDoublesArray));
-            // Aktualisiert die Anzeige der Doppel-Buttons
+            // HIER WURDE RENDERFAVORITES HINZUGEFÜGT:
             renderFavorites(); 
             // Zwingt die App, die Checkout-Anzeige zurückzusetzen (gewünschtes Verhalten bei Konfigurations-Reset)
             resetSelection(); 
