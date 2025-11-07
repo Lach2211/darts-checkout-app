@@ -50,10 +50,11 @@
         .selected-double {
             background-color: #ef4444 !important; /* Rot-500 */
             color: white !important;
-            pointer-events: none; /* Verhindert Hover-Effekt nach Auswahl, wenn Limit erreicht */
+            /* Wichtig: Entferne pointer-events: none, wenn der Benutzer die Auswahl durch erneutes Klicken aufheben soll */
         }
-        .double-select-button:not(.selected-double).opacity-50 {
+        .double-select-button.opacity-50 {
             cursor: not-allowed;
+            pointer-events: none; /* Deaktiviert Klicks, wenn das Limit von 3 erreicht und der Button nicht ausgewählt ist */
         }
     </style>
 </head>
@@ -215,18 +216,19 @@
             const allButtons = grid.querySelectorAll('button');
             allButtons.forEach(btn => {
                 const value = btn.dataset.value; 
+                
+                // Zuerst alle Deaktivierungs- und Auswahl-Klassen entfernen
+                btn.classList.remove('selected-double', 'opacity-50', 'cursor-not-allowed');
+                btn.classList.add('bg-gray-700', 'hover:bg-red-600');
+                
                 if (favoriteDoublesArray.includes(value)) {
+                    // Wenn der Button ausgewählt ist, wähle ihn farblich aus
                     btn.classList.add('selected-double');
-                    btn.classList.remove('bg-gray-700', 'hover:bg-red-600', 'opacity-50');
-                } else {
-                    btn.classList.remove('selected-double');
-                    btn.classList.add('bg-gray-700', 'hover:bg-red-600');
-                    // Deaktiviere visuell, wenn 3 Favoriten ausgewählt sind
-                    if (favoriteDoublesArray.length >= 3) {
-                         btn.classList.add('opacity-50', 'cursor-not-allowed');
-                    } else {
-                         btn.classList.remove('opacity-50', 'cursor-not-allowed');
-                    }
+                } else if (favoriteDoublesArray.length >= 3) {
+                    // Wenn das Limit erreicht ist und der Button NICHT ausgewählt ist, deaktiviere ihn
+                    btn.classList.add('opacity-50', 'cursor-not-allowed');
+                    // Entferne Hover-Effekte auf deaktivierten Buttons
+                    btn.classList.remove('hover:bg-red-600'); 
                 }
             });
         }
@@ -250,7 +252,7 @@
             favoriteDoublesArray = [];
             // Speichert das leere Array persistent
             localStorage.setItem('dartsFavoritesArray', JSON.stringify(favoriteDoublesArray));
-            // HIER WURDE RENDERFAVORITES HINZUGEFÜGT:
+            // Stellt die Buttons wieder her und entfernt alle Markierungen
             renderFavorites(); 
             // Zwingt die App, die Checkout-Anzeige zurückzusetzen (gewünschtes Verhalten bei Konfigurations-Reset)
             resetSelection(); 
