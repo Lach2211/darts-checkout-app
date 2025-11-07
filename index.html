@@ -2,382 +2,240 @@
 <html lang="de">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#111" />
+  <link rel="manifest" href="manifest.webmanifest" />
   <title>Darts Checkout Rechner</title>
-  <meta name="description" content="PWA für schnelle Darts-Checkouts: Double Out, Master Out, Straight Out – inkl. Lieblings-Doppel-Priorisierung." />
-  <link rel="manifest" href="manifest.webmanifest">
-  <meta name="theme-color" content="#111111"/>
-
   <style>
-    :root{
-      --bg:#0f1115;
-      --panel:#151822;
-      --panel-2:#1b1f2b;
-      --accent:#e53935;
-      --accent-2:#ffb300;
-      --text:#e9eef5;
-      --muted:#b8c1d1;
-      --chip:#232836;
-      --ok:#2ecc71;
+    /* Reset & Full-bleed */
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { height: 100%; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      min-height: 100svh; /* mobile-safe viewport height */
+      width: 100%;
+      background: #0f0f13;
+      color: #fff;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      display: flex;
     }
-    *{box-sizing:border-box}
-    html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Arial,sans-serif}
-    .wrap{max-width:1100px;margin:0 auto;padding:14px 14px 32px}
+    /* App root: volle Breite */
+    #app {
+      flex: 1 1 auto;
+      min-height: 100%;
+      width: 100%;
+      max-width: none;   /* wichtig: keine fixe max-width */
+      margin: 0;         /* keine Auto-Zentrierung */
+      padding: 12px;
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 12px;
+    }
 
-    header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:12px}
-    .title{font-size:clamp(20px,3.4vw,28px);font-weight:700;letter-spacing:.2px}
-    .mode{
-      display:flex;gap:8px;flex-wrap:wrap
+    /* Beispiel: Scrollbares Raster für Scores – immer volle Breite */
+    .score-grid {
+      width: 100%;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+      gap: 8px;
+      overflow: auto;
+      padding-bottom: 8px;
     }
-    .btn{
-      background:var(--panel);border:1px solid #2a2f3d;color:var(--text);
-      padding:10px 12px;border-radius:10px;cursor:pointer;user-select:none;
-      font-weight:600
+    .score-btn {
+      display: grid;
+      place-items: center;
+      border: 1px solid #2a2a34;
+      border-radius: 10px;
+      padding: 10px 0;
+      background: #14141b;
+      font-weight: 600;
+      user-select: none;
+      cursor: pointer;
     }
-    .btn[aria-pressed="true"]{outline:2px solid var(--accent);background:var(--panel-2)}
-    .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
-    .fav-wrap{background:var(--panel);border:1px solid #2a2f3d;padding:10px;border-radius:12px}
-    .fav-grid{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
-    .chip{
-      background:var(--chip);border:1px solid #30364a;color:var(--text);
-      padding:8px 10px;border-radius:999px;cursor:pointer;font-weight:600
+    .score-btn.min3 {
+      outline: 2px solid #b30000;     /* rote Kontur */
+      background: #171217;            /* dunkler */
     }
-    .chip.selected{outline:2px solid var(--accent-2);background:#2b3246}
-    .chip.reset{border-style:dashed}
 
-    .board{
-      margin-top:12px;background:var(--panel);border:1px solid #2a2f3d;border-radius:12px;padding:10px
+    /* Lieblings-Doppel Buttons */
+    .fav-doubles { display: flex; flex-wrap: wrap; gap: 8px; }
+    .fav-btn {
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid #2a2a34;
+      background:#121217;
+      cursor:pointer;
     }
-    .legend{display:flex;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-bottom:8px}
-    .legend .key{display:flex;gap:6px;align-items:center}
-    .dot{width:14px;height:14px;border-radius:4px;background:#23283a;border:1px solid #384057}
-    .dot.red{outline:2px solid var(--accent);background:#2a0e10}
+    .fav-btn.active { outline: 2px solid #6cf; }
 
-    .grid{
-      display:grid;gap:8px;
-      grid-template-columns:repeat(auto-fill,minmax(62px,1fr));
-    }
-    .score{
-      background:var(--chip);border:1px solid #30364a;border-radius:12px;
-      padding:10px 6px;text-align:center;cursor:pointer;font-weight:800;
-      transition:transform .05s ease-out
-    }
-    .score:hover{transform:translateY(-1px)}
-    .score.hi{outline:2px solid var(--accent);background:#2a0e10;color:#ffd7d7}
-    .score.sel{outline:2px solid var(--ok);background:#13301f}
-
-    /* result area */
-    .result{margin-top:14px;background:var(--panel);border:1px solid #2a2f3d;border-radius:12px}
-    .res-head{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #242a3a}
-    .res-title{font-weight:800}
-    .res-body{padding:10px 12px}
-    .top3{display:flex;flex-direction:column;gap:8px}
-    .card{
-      background:var(--panel-2);border:1px solid #2a2f3d;border-radius:10px;padding:10px 12px
-    }
-    .card.best{outline:2px solid var(--accent)}
-    .line{display:flex;justify-content:space-between;gap:10px}
-    .hint{color:var(--muted);font-size:12px}
-    details.more{margin-top:8px}
-    details.more summary{cursor:pointer;user-select:none;padding:8px 0;color:var(--muted)}
-    .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace}
-
-    @media (min-width:900px){
-      .flex2{display:grid;grid-template-columns:1.1fr .9fr;gap:12px;align-items:start}
-    }
+    /* Top-3 + Ausklappbereich */
+    .results { width: 100%; }
+    .top3 { display: grid; gap: 6px; }
+    details.more { margin-top: 10px; }
+    summary { cursor: pointer; }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <div class="title">Darts Checkout Rechner</div>
-      <div class="mode" role="tablist" aria-label="Modus">
-        <button class="btn" data-mode="DO" aria-pressed="true">Double Out</button>
-        <button class="btn" data-mode="MO" aria-pressed="false">Master Out</button>
-        <button class="btn" data-mode="SO" aria-pressed="false">Straight Out</button>
+  <main id="app">
+    <header><h1 style="margin:0;font-size:1.25rem;">Darts Checkout Rechner</h1></header>
+
+    <!-- Moduswahl -->
+    <section class="modes" role="group" aria-label="Modus">
+      <button data-mode="DO">Double Out</button>
+      <button data-mode="MO">Master Out</button>
+      <button data-mode="SO">Straight Out</button>
+    </section>
+
+    <!-- Lieblings-Doppel -->
+    <section>
+      <div class="fav-doubles" id="favRow"></div>
+      <div style="margin-top:8px;">
+        <button id="resetFavs">Auswahl zurücksetzen</button>
       </div>
-    </header>
+    </section>
 
-    <div class="row fav-wrap">
-      <div>
-        <div style="font-weight:700">Lieblings-Doppel (max. 3) – Reihenfolge = Priorität</div>
-        <div class="hint">Erneut tippen = entfernen. „Zurücksetzen“ löscht alle.</div>
-      </div>
-      <div class="fav-grid" id="favGrid"></div>
-      <button class="chip reset" id="favReset">Auswahl zurücksetzen</button>
-    </div>
+    <!-- Score-Gitter -->
+    <section class="score-grid" id="scoreGrid" aria-label="Scores"></section>
 
-    <div class="flex2">
-      <section class="board">
-        <div class="legend">
-          <div class="key"><span class="dot"></span> normal</div>
-          <div class="key"><span class="dot red"></span> ≥3 Darts (61+)</div>
-        </div>
-        <div id="scoreGrid" class="grid" aria-label="Scores"></div>
-      </section>
-
-      <section class="result" id="resultBox" hidden>
-        <div class="res-head">
-          <div class="res-title">Checkout für <span id="selScore" class="mono">—</span></div>
-          <div class="hint" id="modeHint">Modus: DO</div>
-        </div>
-        <div class="res-body">
-          <div class="top3" id="top3"></div>
-          <details class="more" id="moreWrap" hidden>
-            <summary>Mehr Checkouts anzeigen</summary>
-            <div id="moreList" style="display:flex;flex-direction:column;gap:8px;margin-top:8px"></div>
-          </details>
-        </div>
-      </section>
-    </div>
-  </div>
+    <!-- Resultate -->
+    <section class="results">
+      <div class="top3" id="top3"></div>
+      <details class="more" id="moreWrap">
+        <summary>Weitere Checkouts anzeigen</summary>
+        <div id="moreList" style="margin-top:8px;display:grid;gap:6px;"></div>
+      </details>
+    </section>
+  </main>
 
   <script>
-    // ======= Daten / Utils =======
-    const BOGEYS_DO = new Set([169,168,166,165,163,162,159]); // in DO ausblenden
-    const DVALS = Array.from({length:20},(_,i)=>({t:'D',n:i+1,v:2*(i+1)})); // D1..D20
-    const SVALS = Array.from({length:20},(_,i)=>({t:'S',n:i+1,v:(i+1)}));   // S1..S20
-    const TVALS = Array.from({length:20},(_,i)=>({t:'T',n:i+1,v:3*(i+1)})); // T1..T20
-    const BULLS = [{t:'S',n:25,v:25,label:'25'},{t:'D',n:25,v:50,label:'50'}]; // 25 & Bull(50)
-
-    const ALL_THROWS = [
-      ...SVALS,...DVALS,...TVALS,
-      {t:'S',n:25,v:25,label:'25'},
-      {t:'D',n:25,v:50,label:'50'} // D-Bull
-    ];
-
-    const END_DO = new Set([...DVALS.map(d=>d.v),50]); // Double (inkl. Bull=50)
-    const END_MO = new Set([
-      ...DVALS.map(d=>d.v),50,      // doubles
-      ...TVALS.map(t=>t.v)          // triples
-    ]);
-
-    let MODE = 'DO'; // DO | MO | SO
-
-    // Lieblings-Doppel Buttons: D10..D20 + DBull (D25)
-    const favTargets = [
-      ...Array.from({length:11},(_,i)=>10+i).map(n=>({code:`D${n}`,v:n*2})), // D10..D20
-      {code:'D25',v:50} // Bull
-    ];
-    const favState = loadFavs();
-    renderFavButtons();
-
-    // ======= Grid erzeugen =======
-    const grid = document.getElementById('scoreGrid');
-    function buildGrid(){
-      grid.innerHTML = '';
-      const [min,max] = (MODE==='DO') ? [2,170] : [2,180];
-      for(let s=max; s>=min; s--){ // absteigend
-        if(MODE==='DO' && BOGEYS_DO.has(s)) continue; // Bogeys entfernen
-        const btn = document.createElement('button');
-        btn.className = 'score'+(needsThree(s)?' hi':'');
-        btn.textContent = s;
-        btn.dataset.score = s;
-        btn.addEventListener('click',()=>onPickScore(s,btn));
-        grid.appendChild(btn);
-      }
-    }
-    function needsThree(s){
-      const thr = 61;
-      if(MODE==='DO') return s>=thr && s<=170;
-      return s>=thr && s<=180;
-    }
-
-    // ======= Modus Umschalten =======
-    const modeBtns = [...document.querySelectorAll('.mode .btn')];
-    modeBtns.forEach(b=>{
-      b.addEventListener('click',()=>{
-        MODE = b.dataset.mode;
-        modeBtns.forEach(x=>x.setAttribute('aria-pressed', String(x===b)));
-        document.getElementById('resultBox').hidden = true;
-        buildGrid();
-      });
-    });
-
-    // ======= Lieblings-Doppel Rendering / Storage =======
-    function renderFavButtons(){
-      const wrap = document.getElementById('favGrid');
-      wrap.innerHTML = '';
-      favTargets.forEach(t=>{
-        const el = document.createElement('button');
-        el.className = 'chip';
-        el.textContent = t.code;
-        el.dataset.v = t.v;
-        if(favState.includes(t.v)) el.classList.add('selected');
-        el.addEventListener('click',()=>{
-          toggleFav(t.v, el);
-        });
-        wrap.appendChild(el);
+    // --- PWA Service Worker registrieren ---
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(console.error);
       });
     }
-    function toggleFav(v, el){
-      const idx = favState.indexOf(v);
-      if(idx>=0){
-        favState.splice(idx,1);
-      }else{
-        if(favState.length>=3) return; // max 3
-        favState.push(v);
-      }
-      saveFavs();
-      el.classList.toggle('selected');
-    }
-    document.getElementById('favReset').addEventListener('click',()=>{
-      favState.length = 0;
-      saveFavs();
-      renderFavButtons();
-    });
-    function saveFavs(){ localStorage.setItem('favDoubles', JSON.stringify(favState)); }
-    function loadFavs(){
-      try{
-        const raw = localStorage.getItem('favDoubles'); 
-        const arr = raw? JSON.parse(raw):[];
-        return Array.isArray(arr)? arr.slice(0,3):[];
-      }catch{ return []; }
-    }
 
-    // ======= Checkout-Berechnung =======
-    // Liefert Liste von Sequenzen (Array von Würfen), je Wurf {t:'S'|'D'|'T', n:1..20|25, v:Wert}
-    function computeCheckouts(target){
-      // Einfache Heuristik: Generiere alle 1-,2-,3-Dart-Kombis, filtere nach Endregel
-      // 1 Dart
-      const res = [];
-      const endSet = MODE==='DO' ? END_DO : MODE==='MO' ? END_MO : null;
+    // --- Modus/Regeln ---
+    const MODES = {
+      DO: { min: 2, max: 170, hideBogey: true, highlightFrom: 61 },
+      MO: { min: 2, max: 180, hideBogey: false, highlightFrom: 61 },
+      SO: { min: 2, max: 180, hideBogey: false, highlightFrom: 61 },
+    };
+    let currentMode = 'DO';
 
-      // 1-dart
-      for(const a of ALL_THROWS){
-        if(a.v===target && endOk(a,endSet)) res.push([a]);
-      }
-      // 2-dart
-      for(const a of ALL_THROWS){
-        if(a.v>=target) continue;
-        for(const b of ALL_THROWS){
-          if(a.v + b.v === target && endOk(b,endSet)) res.push([a,b]);
-        }
-      }
-      // 3-dart
-      for(const a of ALL_THROWS){
-        if(a.v>=target) continue;
-        for(const b of ALL_THROWS){
-          const s2 = a.v + b.v;
-          if(s2>=target) continue;
-          for(const c of ALL_THROWS){
-            if(s2 + c.v === target && endOk(c,endSet)) res.push([a,b,c]);
-          }
-        }
-      }
-      // Duplikate entfernen + sortieren
-      const key = seq => seq.map(x => x.t+(x.n===25?(x.v===50?'50':'25'):x.n)).join('-');
-      const seen = new Set();
-      const uniq = [];
-      for(const seq of res){
-        const k = key(seq);
-        if(!seen.has(k)){ seen.add(k); uniq.push(seq); }
-      }
-      // Sortierung: 1) Favoriten-Ende (in Reihenfolge), 2) Anzahl Darts aufsteigend, 3) Heuristik (bull eher später)
-      const favRank = (lastV) => {
-        const i = favState.indexOf(lastV);
-        return i<0 ? 999 : i; // 0,1,2 besser als 999
-      };
-      const bullPenalty = seq => (seq.some(x=>x.v===50||x.v===25)?1:0);
-      uniq.sort((A,B)=>{
-        const la=A[A.length-1].v, lb=B[B.length-1].v;
-        const rA=favRank(la), rB=favRank(lb);
-        if(rA!==rB) return rA-rB;
-        if(A.length!==B.length) return A.length-B.length;
-        const pA = bullPenalty(A), pB = bullPenalty(B);
-        if(pA!==pB) return pA-pB;
-        // fallback: höherer erster Wurf zuerst (bevorzugt T20/T19)
-        const sA = scoreWeight(A[0]), sB = scoreWeight(B[0]);
-        return sB - sA;
-      });
-      return uniq;
-    }
-    function endOk(last,endSet){
-      if(MODE==='SO') return true;
-      if(MODE==='MO') return endSet.has(last.v);
-      // DO:
-      return END_DO.has(last.v);
-    }
-    function scoreWeight(throwObj){
-      // Bevorzugt T20 > T19 > T18 > ... > D > S
-      const base = throwObj.t==='T'? 200 : throwObj.t==='D'? 100 : 0;
-      const val = throwObj.n===25 ? (throwObj.v===50? 50 : 25) : throwObj.n;
-      return base + val;
-    }
-    function fmtThrow(t){
-      if(t.n===25){
-        return t.v===50 ? 'Bull' : '25';
-      }
-      return t.t + t.n;
-    }
+    // Bogey-Zahlen für DO (nicht checkbar) – klassisch
+    const BOGEYS_DO = new Set([169, 168, 166, 165, 163, 162, 159]);
 
-    // ======= UI Ergebnis =======
-    const resBox = document.getElementById('resultBox');
-    const selScoreEl = document.getElementById('selScore');
-    const top3El = document.getElementById('top3');
+    // Lieblings-Doppel Handling (max 3, inkl. D25)
+    const ALL_DOUBLES = ['D20','D19','D18','D17','D16','D15','D14','D13','D12','D11','D10','D9','D8','D7','D6','D5','D4','D3','D2','D1','D25'];
+    const favKey = 'favDoubles';
+    let favDoubles = JSON.parse(localStorage.getItem(favKey) || '[]');
+
+    const favRow = document.getElementById('favRow');
+    const resetFavsBtn = document.getElementById('resetFavs');
+    const scoreGrid = document.getElementById('scoreGrid');
+    const top3 = document.getElementById('top3');
     const moreWrap = document.getElementById('moreWrap');
     const moreList = document.getElementById('moreList');
-    const modeHint = document.getElementById('modeHint');
 
-    function onPickScore(score,btn){
-      [...document.querySelectorAll('.score.sel')].forEach(x=>x.classList.remove('sel'));
-      btn.classList.add('sel');
-      selScoreEl.textContent = score;
-      modeHint.textContent = 'Modus: ' + MODE;
-
-      const routes = computeCheckouts(score);
-      resBox.hidden = false;
-
-      // Top 3
-      top3El.innerHTML = '';
-      const top = routes.slice(0,3);
-      if(top.length===0){
-        top3El.innerHTML = `<div class="card"><div class="line"><div>Kein Checkout verfügbar</div><div class="hint">—</div></div></div>`;
-        moreWrap.hidden = true;
-        return;
-      }
-      top.forEach((seq,idx)=>{
-        const el = document.createElement('div');
-        el.className = 'card'+(idx===0?' best':'');
-        el.innerHTML = `
-          <div class="line">
-            <div><strong>${idx===0?'Bester Weg':'Weg '+(idx+1)}</strong></div>
-            <div class="hint">${seq.length} Dart${seq.length>1?'s':''}</div>
-          </div>
-          <div class="mono" style="margin-top:6px">${seq.map(fmtThrow).join(' → ')}</div>`;
-        top3El.appendChild(el);
+    // UI bauen
+    function renderFavButtons() {
+      favRow.innerHTML = '';
+      ALL_DOUBLES.forEach(d => {
+        const b = document.createElement('button');
+        b.className = 'fav-btn' + (favDoubles.includes(d) ? ' active' : '');
+        b.textContent = d;
+        b.onclick = () => {
+          if (favDoubles.includes(d)) {
+            favDoubles = favDoubles.filter(x => x !== d);
+          } else {
+            if (favDoubles.length < 3) favDoubles.push(d);
+          }
+          localStorage.setItem(favKey, JSON.stringify(favDoubles));
+          renderFavButtons();
+          // Ergebnisse neu sortieren, wenn offen
+          // (optional: neu berechnen, wenn gerade ein Score aktiv ist)
+        };
+        favRow.appendChild(b);
       });
+    }
 
-      // More
-      const rest = routes.slice(3);
-      if(rest.length>0){
-        moreWrap.hidden = false;
-        moreList.innerHTML = '';
-        rest.forEach((seq,i)=>{
-          const el = document.createElement('div');
-          el.className = 'card';
-          el.innerHTML = `
-            <div class="line">
-              <div>Alternative ${i+1}</div>
-              <div class="hint">${seq.length} Darts</div>
-            </div>
-            <div class="mono" style="margin-top:6px">${seq.map(fmtThrow).join(' → ')}</div>`;
-          moreList.appendChild(el);
-        });
-      }else{
-        moreWrap.hidden = true;
+    function buildScores() {
+      const { min, max, hideBogey, highlightFrom } = MODES[currentMode];
+      scoreGrid.innerHTML = '';
+      for (let s = max; s >= min; s--) {
+        if (currentMode === 'DO' && hideBogey && BOGEYS_DO.has(s)) continue;
+        const btn = document.createElement('button');
+        btn.className = 'score-btn' + (s >= highlightFrom ? ' min3' : '');
+        btn.textContent = s;
+        btn.setAttribute('data-score', s);
+        btn.onclick = () => showCheckouts(s);
+        scoreGrid.appendChild(btn);
       }
     }
+
+    // Dummy-Checkout-Berechnung (Platzhalter):
+    // -> Hier deine echte Logik einhängen und am Ende nach favDoubles priorisieren.
+    function computeCheckouts(score) {
+      // Beispielplatzhalter: gibt 1–6 fiktive Wege zurück
+      const fake = [
+        `T20 T20 D${(score % 20) + 1}`,
+        `T19 T14 D${(score % 20) + 1}`,
+        `T18 T18 D${(score % 20) + 1}`,
+        `T20 ${score-60}-? D?`,
+        `Bull D${(score % 20) + 1}`,
+        `T17 T16 D${(score % 20) + 1}`,
+      ];
+      // Favorisierte Doppel priorisieren (nur DO):
+      if (currentMode === 'DO' && favDoubles.length) {
+        fake.sort((a, b) => {
+          const pa = favDoubles.findIndex(fd => a.endsWith(fd));
+          const pb = favDoubles.findIndex(fd => b.endsWith(fd));
+          return (pa === -1 ? 999 : pa) - (pb === -1 ? 999 : pb);
+        });
+      }
+      return fake;
+    }
+
+    function showCheckouts(score) {
+      const list = computeCheckouts(score);
+      top3.innerHTML = '';
+      moreList.innerHTML = '';
+      if (!list.length) { moreWrap.open = false; return; }
+      // Top 3 kompakt
+      list.slice(0,3).forEach((line, i) => {
+        const div = document.createElement('div');
+        div.textContent = (i === 0 ? '⭐ ' : '') + line;
+        top3.appendChild(div);
+      });
+      // Rest ausklappbar
+      const rest = list.slice(3);
+      if (rest.length) {
+        moreList.innerHTML = '';
+        rest.forEach(line => {
+          const div = document.createElement('div');
+          div.textContent = line;
+          moreList.appendChild(div);
+        });
+        moreWrap.open = false;
+        moreWrap.style.display = '';
+      } else {
+        moreWrap.style.display = 'none';
+      }
+    }
+
+    // Modus Buttons (einfach gehalten)
+    document.querySelectorAll('[data-mode]').forEach(btn => {
+      btn.onclick = () => {
+        currentMode = btn.dataset.mode;
+        buildScores();
+      };
+    });
 
     // Init
-    buildGrid();
-
-    // ======= PWA Registrierung (optional, wenn sw.js vorhanden) =======
-    if('serviceWorker' in navigator){
-      window.addEventListener('load',()=>{
-        navigator.serviceWorker.register('./sw.js').catch(()=>{});
-      });
-    }
+    renderFavButtons();
+    buildScores();
   </script>
 </body>
 </html>
