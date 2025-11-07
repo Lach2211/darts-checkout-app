@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Darts Checkout Rechner</title>
+    <!-- Lade Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a1a1a; /* Dunkler Hintergrund, Darts-Thema */
+            color: #f0f0f0;
+        }
+        .score-button {
+            transition: all 0.1s;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+        }
+        .score-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 10px -1px rgba(0, 0, 0, 0.3), 0 4px 6px -3px rgba(0, 0, 0, 0.2);
+        }
+        /* Rot für kritische Felder */
+        .mode-label input:checked + span {
+            background-color: #ef4444; /* Rot-500 */
+            border-color: #dc2626;
+        }
+        /* Style für die Quick Select Liste */
+        #quickSelectScroll {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        #quickSelectScroll::-webkit-scrollbar {
+            width: 8px;
+        }
+        #quickSelectScroll::-webkit-scrollbar-thumb {
+            background: #4b5563;
+            border-radius: 4px;
+        }
+        #quickSelectScroll::-webkit-scrollbar-track {
+            background: #1f2937;
+        }
+        /* Style für ausgewählte Doppel-Buttons */
+        .selected-double {
+            background-color: #ef4444 !important; /* Rot-500 */
+            color: white !important;
+            pointer-events: none; /* Verhindert Hover-Effekt nach Auswahl, wenn Limit erreicht */
+        }
+        .double-select-button:not(.selected-double).opacity-50 {
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-6 min-h-screen flex flex-col items-center">
+
+    <div id="app" class="w-full max-w-4xl">
+        <h1 class="text-3xl font-extrabold mb-8 text-center text-white flex items-center justify-center">
+            <span class="mr-3">🎯</span>
+            Darts Checkout Rechner
+        </h1>
+        
+        <!-- NEUER ERGEBNIS-BEREICH (JETZT OBEN) -->
+        <div id="resultArea" class="mt-4 p-6 bg-gray-900 rounded-xl shadow-2xl min-h-[150px] mb-8">
+            <h2 id="resultHeader" class="text-xl font-bold mb-4 text-center text-red-500 hidden">Checkouts für: <span id="currentScore" class="text-white"></span></h2>
+            <div id="checkoutList" class="space-y-3">
+                <p id="initialMessage" class="text-center text-gray-400 mt-4">Wählen Sie einen Restscore, um die Checkouts anzuzeigen.</p>
+            </div>
+        </div>
+
+        <!-- Modus-Auswahl und Favoriten-Einstellungen -->
+        <div class="mb-8 p-4 bg-gray-800 rounded-xl shadow-lg">
+            <h2 class="text-lg font-bold mb-3 text-red-400">Spiel-Modus & Einstellungen</h2>
+            
+            <!-- Modus-Wahl -->
+            <div class="flex flex-wrap gap-4 justify-center mb-4">
+                <label class="mode-label flex items-center cursor-pointer">
+                    <input type="radio" name="checkoutMode" value="doubleOut" checked class="hidden" onchange="loadCheckoutsFromCurrentScore()">
+                    <span class="py-2 px-4 rounded-lg text-sm font-semibold bg-gray-700 border-2 border-gray-600 hover:bg-gray-600 transition duration-150 text-white">
+                        Double Out (D)
+                    </span>
+                </label>
+                <label class="mode-label flex items-center cursor-pointer">
+                    <input type="radio" name="checkoutMode" value="masterOut" class="hidden" onchange="loadCheckoutsFromCurrentScore()">
+                    <span class="py-2 px-4 rounded-lg text-sm font-semibold bg-gray-700 border-2 border-gray-600 hover:bg-gray-600 transition duration-150 text-white">
+                        Master Out (D/T)
+                    </span>
+                </label>
+                <label class="mode-label flex items-center cursor-pointer">
+                    <input type="radio" name="checkoutMode" value="straightOut" class="hidden" onchange="loadCheckoutsFromCurrentScore()">
+                    <span class="py-2 px-4 rounded-lg text-sm font-semibold bg-gray-700 border-2 border-gray-600 hover:bg-gray-600 transition duration-150 text-white">
+                        Straight Out (Any)
+                    </span>
+                </label>
+            </div>
+
+            <!-- Lieblings-Doppel Auswahl -->
+            <div class="pt-4 border-t border-gray-700">
+                <label class="block text-sm font-medium mb-2 text-gray-300">
+                    Deine Lieblings-Doppel (Max. 3, D12 bis D20 & Bull)
+                </label>
+                
+                <!-- Angezeigte Favoriten (D16, D20, ...) -->
+                <div id="selectedFavoritesDisplay" class="mb-4 flex flex-wrap gap-3 p-3 bg-gray-700 rounded-lg min-h-[50px] items-center">
+                    <p id="favPlaceholder" class="text-gray-400 text-sm">Wähle bis zu 3 Doppel aus der Liste unten.</p>
+                </div>
+
+                <!-- Auswahl-Buttons (12-20, Bull) -->
+                <div id="doubleSelectGrid" class="grid grid-cols-5 sm:grid-cols-10 gap-2 mb-4">
+                    <!-- Buttons werden von JS generiert -->
+                </div>
+
+                <!-- Reset Button -->
+                <button onclick="resetFavorites()" class="w-full py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition duration-150 shadow-md">
+                    Auswahl zurücksetzen
+                </button>
+            </div>
+
+        </div>
+
+        <!-- Quick-Select Zahlen-Raster (JETZT ALLE SCORES) -->
+        <h2 class="text-lg font-bold mb-3 text-red-400">Schnell-Auswahl (Alle Finishes 170 - 2)</h2>
+        <div id="quickSelectScroll" class="p-2 bg-gray-800 rounded-xl shadow-inner">
+             <div id="quickSelectGrid" class="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-1.5">
+                <!-- Buttons werden von JS generiert -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const resultArea = document.getElementById('resultArea');
+        const resultHeader = document.getElementById('resultHeader');
+        const currentScoreSpan = document.getElementById('currentScore');
+        const checkoutList = document.getElementById('checkoutList');
+        const quickSelectGrid = document.getElementById('quickSelectGrid');
+        // Manuelle Eingabe-Variablen entfernt
+        let currentScore = null; // Speichert den zuletzt ausgewählten Score
+        
+        // GLOBALE VARIABLE FÜR LIEBLINGS-DOPPEL
+        let favoriteDoublesArray = []; 
+
+
+        // Funktion zur Überprüfung des Custom Score Inputs (ENTFERNT)
+
+        // Initialisiere die Schnell-Auswahl-Buttons
+        function initQuickSelectButtons() {
+            quickSelectGrid.innerHTML = '';
+            // Generiere ALLE Scores von 170 bis 2
+            for (let i = 170; i >= 2; i--) {
+                const button = document.createElement('button');
+                button.textContent = i;
+                button.dataset.score = i;
+                // Passe die Größe der Schrift für die vielen Buttons an
+                const fontSize = i >= 100 ? 'text-xl' : 'text-lg';
+                button.className = `score-button bg-gray-700 text-white font-bold p-1.5 rounded-lg hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 transition duration-150 ${fontSize}`;
+                button.onclick = () => displayCheckouts(i);
+                quickSelectGrid.appendChild(button);
+            }
+        }
+        
+        // --- FAVORITES LOGIC ---
+        
+        function initDoubleSelectButtons() {
+            const grid = document.getElementById('doubleSelectGrid');
+            grid.innerHTML = '';
+
+            // D12 to D20 (Start bei 12, Ende bei 20)
+            for (let i = 12; i <= 20; i++) {
+                const value = `D${i}`;
+                const button = document.createElement('button');
+                button.textContent = i;
+                button.dataset.value = value;
+                button.className = `double-select-button p-2 rounded-lg text-lg font-bold bg-gray-700 text-white hover:bg-red-600 transition duration-150`;
+                button.onclick = () => selectFavoriteDouble(value);
+                grid.appendChild(button);
+            }
+
+            // Double Bull (D25)
+            const bullButton = document.createElement('button');
+            bullButton.textContent = 'BULL';
+            bullButton.dataset.value = 'D25';
+            bullButton.className = `double-select-button p-2 rounded-lg text-lg font-bold bg-gray-700 text-yellow-400 hover:bg-red-600 transition duration-150`;
+            bullButton.onclick = () => selectFavoriteDouble('D25');
+            grid.appendChild(bullButton);
+        }
+        
+        function renderFavorites() {
+            const display = document.getElementById('selectedFavoritesDisplay');
+            const placeholder = document.getElementById('favPlaceholder');
+            const grid = document.getElementById('doubleSelectGrid');
+
+            display.innerHTML = '';
+            
+            if (favoriteDoublesArray.length === 0) {
+                display.appendChild(placeholder);
+            } else {
+                favoriteDoublesArray.forEach((d, index) => {
+                    // D25 anzeigen als DBULL
+                    const doubleText = d === 'D25' ? 'DBULL' : d; 
+                    const item = document.createElement('span');
+                    item.className = `px-3 py-1 rounded-full text-sm font-bold shadow-md 
+                                      ${index === 0 ? 'bg-red-500 text-white' : (index === 1 ? 'bg-yellow-500 text-gray-900' : 'bg-green-500 text-white')}`;
+                    item.textContent = `${index + 1}. ${doubleText}`;
+                    display.appendChild(item);
+                });
+            }
+
+            // Update button states
+            const allButtons = grid.querySelectorAll('button');
+            allButtons.forEach(btn => {
+                const value = btn.dataset.value; 
+                if (favoriteDoublesArray.includes(value)) {
+                    btn.classList.add('selected-double');
+                    btn.classList.remove('bg-gray-700', 'hover:bg-red-600', 'opacity-50');
+                } else {
+                    btn.classList.remove('selected-double');
+                    btn.classList.add('bg-gray-700', 'hover:bg-red-600');
+                    // Deaktiviere visuell, wenn 3 Favoriten ausgewählt sind
+                    if (favoriteDoublesArray.length >= 3) {
+                         btn.classList.add('opacity-50', 'cursor-not-allowed');
+                    } else {
+                         btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    }
+                }
+            });
+        }
+        
+        function selectFavoriteDouble(value) {
+            // value is D12 to D20 or D25
+            const index = favoriteDoublesArray.indexOf(value);
+            
+            if (index > -1) {
+                // Already selected: Remove it, maintaining the order of the remaining
+                favoriteDoublesArray.splice(index, 1);
+            } else if (favoriteDoublesArray.length < 3) {
+                // Not selected and space available: Add it
+                favoriteDoublesArray.push(value);
+            }
+
+            saveFavorites();
+        }
+        
+        function resetFavorites() {
+            favoriteDoublesArray = [];
+            // Speichert das leere Array persistent
+            localStorage.setItem('dartsFavoritesArray', JSON.stringify(favoriteDoublesArray));
+            // Aktualisiert die Anzeige der Doppel-Buttons
+            renderFavorites(); 
+            // Zwingt die App, die Checkout-Anzeige zurückzusetzen (gewünschtes Verhalten bei Konfigurations-Reset)
+            resetSelection(); 
+        }
+
+        // Update persistence logic
+        function loadFavorites() {
+            const savedFavorites = localStorage.getItem('dartsFavoritesArray');
+            if (savedFavorites) {
+                try {
+                    // Wichtig: Lädt das Array, das Double-Werte wie D16 oder D25 enthält
+                    favoriteDoublesArray = JSON.parse(savedFavorites);
+                } catch (e) {
+                    favoriteDoublesArray = [];
+                }
+            }
+            renderFavorites();
+        }
+
+        function saveFavorites() {
+            // Speichert das Array und aktualisiert die UI
+            localStorage.setItem('dartsFavoritesArray', JSON.stringify(favoriteDoublesArray));
+            renderFavorites(); 
+            // Wenn ein Score ausgewählt ist, Checkouts neu laden
+            loadCheckoutsFromCurrentScore();
+        }
+
+        function getFavoriteDoubles() {
+            // Liest direkt aus dem internen Array (D12, D25, etc.)
+            return favoriteDoublesArray;
+        }
+
+        // --- ENDE FAVORITES LOGIC ---
+        
+        // Segmente für die ersten beiden Darts (S, T, SBull)
+        const getDartSegments = () => {
+            const s_t_segments = [];
+            for (let i = 1; i <= 20; i++) {
+                s_t_segments.push([i, `S${i}`]); // Single
+                s_t_segments.push([i * 3, `T${i}`]); // Triple
+            }
+            s_t_segments.push([25, 'SBull']); // Single Bull (25)
+            return s_t_segments;
+        }
+
+        // Segmente für den letzten Dart (D, D25)
+        const getDoubleSegments = () => {
+            const d_segments = [];
+            for (let i = 1; i <= 20; i++) {
+                d_segments.push([i * 2, `D${i}`]); // Double
+            }
+            d_segments.push([50, 'D25']); // Double Bull (50)
+            return d_segments;
+        }
+
+        // Globale Definition der Segmente für Performance
+        const DART_SEGMENTS = getDartSegments(); // S, T, SBull
+        const DOUBLE_SEGMENTS = getDoubleSegments(); // D, D25
+        
+        // Hardgecodierte gängige 3-Dart Checkouts (Double Out) - High Scores
+        const COMMON_3_DART_CHECKOUTS = {
+            170: ["T20 T20 D25 (Bull)"], 167: ["T20 T19 D25 (Bull)"], 164: ["T20 T18 D25 (Bull)"], 161: ["T20 T17 D25 (Bull)"],
+            160: ["T20 T20 D20"], 158: ["T20 T20 D19"], 157: ["T20 T19 D20"], 156: ["T20 T20 D18"],
+            155: ["T20 T19 D19"], 154: ["T20 T18 D20"], 153: ["T20 T19 D18"], 152: ["T20 T17 D20"],
+            151: ["T20 T17 D20", "T19 T20 D17"], 150: ["T20 T18 D18"], 149: ["T20 T19 D16"], 148: ["T20 T20 D14"],
+            147: ["T20 T17 D18"], 146: ["T20 T18 D16"], 145: ["T20 T15 D20"], 144: ["T20 T20 D12"],
+            143: ["T20 T17 D16"], 142: ["T20 T14 D20"], 141: ["T20 T19 D12"], 140: ["T20 T16 D16"],
+            139: ["T20 T13 D20"], 138: ["T20 T18 D12"], 137: ["T20 T19 D10"], 136: ["T20 T20 D8"],
+            135: ["T20 T17 D12"], 134: ["T20 T14 D16"], 133: ["T20 T19 D8"], 132: ["T20 T16 D12"],
+            131: ["T20 T13 D16"], 130: ["T20 T20 D5", "T20 T18 D8"], 129: ["T19 T20 D6"], 128: ["T18 T20 D7"],
+            127: ["T19 T18 D8"], 126: ["T19 T19 D5", "T20 T10 D18"], 125: ["T18 T19 D6"], 124: ["T20 T16 D8"],
+            123: ["T19 T16 D9"], 122: ["T18 T18 D7"], 121: ["T20 S11 D20", "T17 T18 D8"],
+            120: ["T20 S20 D20", "T18 S20 D19"], 119: ["T19 S20 D20"], 118: ["T20 S18 D20"], 117: ["T20 S17 D20"],
+            116: ["T20 S16 D20"], 115: ["T20 S15 D20"], 114: ["T20 S14 D20"], 113: ["T20 S13 D20"],
+            112: ["T20 S12 D20"], 111: ["T20 S19 D16"], 110: ["T20 S18 D16"],
+            // Spezielle 3-Dart Finishes unter 110 (werden zu calculated, aber hier zur Priorisierung)
+            105: ["T20 S13 D16"], 108: ["T20 S16 D16"], 107: ["T19 S10 D20"],
+        };
+
+        // Verbesserte Funktion zur Generierung aller 1-, 2- und 3-Dart-Finishes
+        // NUR S, T, SBULL auf den ersten beiden Darts erlaubt
+        function calculateAllFinishes(score) {
+            const allFinishes = [];
+
+            // 1-Dart Finishes (muss D sein für DO, D/T für MO/SO)
+            if (score > 0 && score <= 60) {
+                // Double
+                const d_checkout = DOUBLE_SEGMENTS.find(([val, note]) => val === score);
+                if (d_checkout) allFinishes.push(d_checkout[1]);
+                // Triple (nur für MO/SO relevant, aber hier zur Vollständigkeit)
+                if (score % 3 === 0 && score / 3 <= 20) {
+                    allFinishes.push(`T${score / 3}`);
+                }
+            }
+
+
+            // 2-Dart Finishes (Dart 1: S/T/SBull, Dart 2: D)
+            for (const [val1, note1] of DART_SEGMENTS) {
+                const remaining = score - val1;
+                if (remaining > 0 && remaining <= 50) {
+                    const d_checkout = DOUBLE_SEGMENTS.find(([val, note]) => val === remaining);
+                    if (d_checkout) {
+                        allFinishes.push(`${note1} ${d_checkout[1]}`);
+                    }
+                }
+            }
+
+            // 3-Dart Finishes (Dart 1 & 2: S/T/SBull, Dart 3: D)
+            if (score > 50) {
+                for (const [val1, note1] of DART_SEGMENTS) {
+                    if (val1 >= score) continue;
+
+                    for (const [val2, note2] of DART_SEGMENTS) {
+                        const remaining = score - val1 - val2;
+                        if (remaining > 0 && remaining <= 50) {
+                            const d_checkout = DOUBLE_SEGMENTS.find(([val, note]) => val === remaining);
+                            if (d_checkout) {
+                                allFinishes.push(`${note1} ${note2} ${d_checkout[1]}`);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Füge hartkodierte High Finishes hinzu (höchste Priorität)
+            if (COMMON_3_DART_CHECKOUTS[score]) {
+                // Füge hinzu, aber nicht an erster Stelle, da die Berechnung besser ist, um Duplikate zu vermeiden
+                allFinishes.push(...COMMON_3_DART_CHECKOUTS[score]);
+            }
+
+            // NEU: Entferne Duplikate auf dieser Ebene
+            return [...new Set(allFinishes)];
+        }
+
+        /**
+         * Priorisiert Checkouts basierend auf der exakten Reihenfolge der Lieblings-Doppel.
+         */
+        function sortCheckoutsByFavorites(checkouts, favorites) {
+            if (!favorites || favorites.length === 0) {
+                return checkouts; // Keine Priorisierung
+            }
+
+            const prioritizedCheckouts = [];
+            const remainingCheckouts = [...checkouts];
+            const processedCheckouts = new Set();
+            
+            // 1. Priorisiere nach der Reihenfolge der Lieblings-Doppel
+            favorites.forEach(favDouble => {
+                // Prüfe alle Checkouts, die noch nicht verarbeitet wurden
+                for (let i = remainingCheckouts.length - 1; i >= 0; i--) {
+                    const checkout = remainingCheckouts[i];
+                    // Prüfe, ob das Checkout mit dem aktuellen Lieblings-Doppel endet
+                    if (checkout.endsWith(favDouble) || (favDouble === 'D25' && checkout.endsWith('D25 (Bull)'))) {
+                        // Füge es zur Prioritätenliste hinzu und entferne es aus der Restliste
+                        prioritizedCheckouts.push(checkout);
+                        remainingCheckouts.splice(i, 1);
+                        processedCheckouts.add(checkout);
+                    }
+                }
+            });
+            
+            // 2. Füge alle verbleibenden (nicht-favorisierten) Checkouts hinzu.
+            const finalUnfavored = remainingCheckouts.filter(c => !processedCheckouts.has(c));
+            
+            return [...prioritizedCheckouts, ...finalUnfavored];
+        }
+
+
+        // Hauptfunktion zur Generierung aller Checkouts
+        function getCheckouts(score, mode) {
+            if (score === 1 || score < 2 || score > 170) return ["Kein Checkout möglich"];
+            
+            // Bogey-Zahlen, die mit 3 Darts nicht checkbar sind (Double Out)
+            const BOGEY_NUMBERS = [169, 168, 166, 165, 163, 162, 159];
+            if (mode === 'doubleOut' && BOGEY_NUMBERS.includes(score)) {
+                 return [`BOGEY-ZAHL (${score}) - Im Double Out nicht mit 3 Darts checkbar!`];
+            }
+            
+            let allDartsFinishes = calculateAllFinishes(score);
+            const favorites = getFavoriteDoubles(); // Holt jetzt das Array
+
+            if (mode === 'doubleOut') {
+                // Filtere nur Checkouts, die mit D oder D25 enden
+                let finalCheckouts = allDartsFinishes.filter(c => c.match(/(D\d+|D25|\(Bull\))$/i));
+                
+                // Sortiere nach Lieblings-Doppel, wobei die Reihenfolge beachtet wird
+                finalCheckouts = sortCheckoutsByFavorites(finalCheckouts, favorites);
+                
+                return finalCheckouts.length > 0 ? finalCheckouts : ["Kein gängiges Double-Out Checkout gefunden."];
+
+            } else if (mode === 'masterOut') {
+                 // MASTER OUT LOGIK (endet mit D oder T)
+                 
+                 // 1. Hole alle Checkouts, die mit D oder T enden
+                 let finalCheckouts = allDartsFinishes.filter(c => c.match(/(D\d+|D25|\(Bull\)|T\d+)$/i));
+                 
+                 // 2. Füge den schnellsten 1-Dart Triple (für 60, 57, 54...) an die Spitze, falls vorhanden
+                 if (score <= 60 && score % 3 === 0 && score > 0 && score / 3 <= 20) {
+                    finalCheckouts.unshift(`T${score / 3}`);
+                 }
+                 
+                 // 3. Wende die Lieblings-Doppel-Sortierung auf D-Endungen an
+                 finalCheckouts = sortCheckoutsByFavorites([...new Set(finalCheckouts)], favorites);
+                 
+                 return finalCheckouts.length > 0 ? finalCheckouts : ["Kein gängiges Master-Out Checkout gefunden."];
+
+            } else if (mode === 'straightOut') {
+                // STRAIGHT OUT LOGIK
+                let finalCheckouts = allDartsFinishes;
+
+                // Fügen Sie zusätzliche Straight Out Optionen hinzu (Triple-Finishes an die Spitze)
+                if (score <= 60 && score % 3 === 0 && score > 0 && score / 3 <= 20) {
+                     finalCheckouts.unshift(`T${score / 3}`);
+                 }
+                // High-Scores sind bereits in COMMON_3_DART_CHECKOUTS enthalten und priorisiert
+
+                // Entferne alle Checkouts, die mit einem Double enden, da sie oft länger sind als nötig,
+                // es sei denn, der Score ist sehr niedrig (<= 50)
+                if (score > 60) {
+                     finalCheckouts = finalCheckouts.filter(c => !c.match(/(D\d+|D25|\(Bull\))$/i) || c.match(/^T/));
+                }
+
+                return finalCheckouts.length > 0 ? [...new Set(finalCheckouts)] : ["Kein gängiger Checkout gefunden."];
+            }
+        }
+        
+        /**
+         * Funktion zum Umschalten des ausgeblendeten Checkout-Bereichs.
+         */
+        function toggleOtherCheckouts() {
+            const hiddenDiv = document.getElementById('hiddenCheckouts');
+            const button = document.getElementById('toggleOthersBtn');
+            const isHidden = hiddenDiv.style.display === 'none';
+
+            if (isHidden) {
+                hiddenDiv.style.display = 'block';
+                button.textContent = 'Weitere Checkouts ausblenden';
+            } else {
+                hiddenDiv.style.display = 'none';
+                // Aktualisiere den Zähler im Button-Text
+                const mode = document.querySelector('input[name="checkoutMode"]:checked').value;
+                const checkouts = getCheckouts(currentScore, mode);
+                const count = checkouts.length - 3;
+                button.textContent = `Alle ${count} weiteren Checkouts anzeigen`;
+            }
+        }
+
+        // Haupt-Anzeige-Funktion
+        function displayCheckouts(score) {
+            score = parseInt(score);
+            currentScore = score; // Setze den aktuellen Score
+            
+            if (isNaN(score) || score < 2 || score > 170) {
+                checkoutList.innerHTML = `<p class="text-center text-red-500 font-semibold">Bitte wählen Sie einen gültigen Score (2 - 170) aus der Liste.</p>`;
+                resultHeader.classList.add('hidden');
+                return;
+            }
+
+            // Hole den Modus
+            const mode = document.querySelector('input[name="checkoutMode"]:checked').value;
+
+            // Markiere den aktuell ausgewählten Button
+            document.querySelectorAll('.score-button').forEach(btn => {
+                btn.classList.remove('bg-red-600', 'bg-green-600');
+                btn.classList.add('bg-gray-700', 'hover:bg-red-600');
+                if (parseInt(btn.dataset.score) === score) {
+                    btn.classList.remove('bg-gray-700', 'hover:bg-red-600');
+                    btn.classList.add('bg-green-600');
+                }
+            });
+
+
+            const checkouts = getCheckouts(score, mode);
+
+            currentScoreSpan.textContent = score;
+            resultHeader.classList.remove('hidden');
+            checkoutList.innerHTML = ''; // Liste leeren
+            
+            // Wenn es die Bogey-Meldung ist, zeige sie in Rot an
+            if (checkouts.length === 1 && checkouts[0].startsWith('BOGEY-ZAHL')) {
+                const bogeyElement = document.createElement('div');
+                bogeyElement.className = 'p-4 bg-yellow-600 text-white rounded-lg shadow-xl text-center text-xl font-extrabold tracking-wider animate-pulse';
+                bogeyElement.textContent = checkouts[0];
+                checkoutList.appendChild(bogeyElement);
+                return;
+            }
+
+
+            // --- NEUE ANZEIGELOGIK FÜR TOP 3 UND AUSKLAPPBARER BEREICH ---
+            
+            const preferred = checkouts[0];
+            const topThreeRemainder = checkouts.slice(1, 3); // Index 1 und 2
+            const otherCheckouts = checkouts.slice(3); // Alle weiteren
+
+            // 1. Preferred Checkout (highlighted)
+            if (preferred) {
+                const preferredElement = document.createElement('div');
+                preferredElement.className = 'p-4 bg-red-600 rounded-lg shadow-xl text-center text-2xl font-extrabold tracking-wider';
+                preferredElement.textContent = preferred;
+                checkoutList.appendChild(preferredElement);
+            }
+
+            // 2. Die nächsten beiden Checkouts anzeigen (Top 3 gesamt)
+            if (topThreeRemainder.length > 0) {
+                topThreeRemainder.forEach(c => {
+                    const cElement = document.createElement('p');
+                    cElement.className = 'text-center text-gray-200 text-lg font-medium p-1 border-b border-gray-700 transition duration-100';
+                    cElement.textContent = c;
+                    checkoutList.appendChild(cElement);
+                });
+            }
+
+            // 3. Collapsible section for all others
+            if (otherCheckouts.length > 0) {
+                const totalOthers = otherCheckouts.length;
+                
+                // Button zum Umschalten
+                const toggleButton = document.createElement('button');
+                toggleButton.id = 'toggleOthersBtn';
+                toggleButton.className = 'w-full mt-4 py-2 px-4 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg transition duration-150 shadow-md';
+                toggleButton.textContent = `Alle ${totalOthers} weiteren Checkouts anzeigen`;
+                toggleButton.onclick = toggleOtherCheckouts;
+                checkoutList.appendChild(toggleButton);
+
+                // Versteckter Container
+                const hiddenDiv = document.createElement('div');
+                hiddenDiv.id = 'hiddenCheckouts';
+                hiddenDiv.style.display = 'none';
+                hiddenDiv.className = 'mt-3 pt-3 border-t border-gray-700 space-y-2';
+
+                // Liste der restlichen Checkouts
+                otherCheckouts.forEach(c => {
+                    const cElement = document.createElement('p');
+                    cElement.className = 'text-center text-gray-400 text-base p-1 border-b border-gray-800';
+                    cElement.textContent = c;
+                    hiddenDiv.appendChild(cElement);
+                });
+                checkoutList.appendChild(hiddenDiv);
+            } else if (checkouts.length === 0) {
+                 checkoutList.innerHTML = `<p class="text-center text-gray-400 mt-4">Für diesen Score wurden keine gängigen ${mode === 'doubleOut' ? 'Double Out' : (mode === 'masterOut' ? 'Master Out' : 'Straight Out')} Finishes gefunden.</p>`;
+            }
+            // --- ENDE NEUE ANZEIGELOGIK ---
+        }
+        
+        // Lädt die Checkouts für den aktuell ausgewählten Score neu (nach Modus- oder Favoriten-Änderung)
+        function loadCheckoutsFromCurrentScore() {
+            if (currentScore) {
+                displayCheckouts(currentScore);
+            } else {
+                // Setze die Auswahl zurück, wenn kein Score ausgewählt ist
+                resetSelection();
+            }
+        }
+
+        // Zurücksetzen der Auswahl, wenn der Modus geändert wird (Unverändert)
+        function resetSelection() {
+            currentScore = null;
+            document.querySelectorAll('.score-button').forEach(btn => {
+                btn.classList.remove('bg-green-600');
+                btn.classList.add('bg-gray-700', 'hover:bg-red-600');
+            });
+            checkoutList.innerHTML = '<p id="initialMessage" class="text-center text-gray-400 mt-4">Wählen Sie einen Restscore, um die Checkouts anzuzeigen.</p>';
+            resultHeader.classList.add('hidden');
+        }
+
+
+        // Initialisiere die App beim Laden (Aktualisiert)
+        window.onload = () => {
+            loadFavorites(); // Lädt favoritesArray
+            initDoubleSelectButtons(); // Erstellt die klickbaren Doppel-Buttons
+            initQuickSelectButtons(); // Erstellt die Score-Buttons
+        };
+
+    </script>
+</body>
+</html>
