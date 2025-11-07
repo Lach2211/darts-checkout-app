@@ -59,8 +59,8 @@
 </head>
 <body class="p-4 sm:p-6 min-h-screen">
 
-    <!-- HAUPTCONTAINER: max-w-4xl entfernt, um volle Breite zu ermöglichen, aber eine sinnvolle maximale Breite beibehalten -->
-    <div id="app" class="w-full max-w-full lg:max-w-6xl">
+    <!-- HAUPTCONTAINER: Die Klasse 'container' sorgt für eine zentrierte, flexible Maximalbreite auf Desktops -->
+    <div id="app" class="w-full container mx-auto lg:max-w-6xl">
         <h1 class="text-3xl font-extrabold mb-8 text-center text-white flex items-center justify-center">
             <span class="mr-3">🎯</span>
             Darts Checkout Rechner
@@ -197,6 +197,16 @@
 
             display.innerHTML = '';
             
+            // 1. Visuelle Zurücksetzung der Buttons (MUSS VOR dem Hinzufügen des Placeholders geschehen)
+            const allButtons = grid.querySelectorAll('button');
+            allButtons.forEach(btn => {
+                // Alle Status-Klassen entfernen, um sauber neu zu rendern
+                btn.classList.remove('selected-double', 'opacity-50', 'cursor-not-allowed');
+                // Setze Standard-Styling zurück (Wichtig: Stelle Hover-Klasse wieder her)
+                btn.classList.add('bg-gray-700', 'hover:bg-red-600'); 
+            });
+
+
             if (favoriteDoublesArray.length === 0) {
                 display.appendChild(placeholder);
             } else {
@@ -211,22 +221,15 @@
                 });
             }
 
-            // Update button states
-            const allButtons = grid.querySelectorAll('button');
+            // 2. Aktuellen Status anwenden
             allButtons.forEach(btn => {
                 const value = btn.dataset.value; 
                 
-                // 1. Alle Status-Klassen entfernen, um sauber neu zu rendern
-                btn.classList.remove('selected-double', 'opacity-50', 'cursor-not-allowed');
-                // Setze Standard-Styling zurück
-                btn.classList.add('bg-gray-700'); 
-                btn.classList.add('hover:bg-red-600');
-                
                 if (favoriteDoublesArray.includes(value)) {
-                    // 2. Wenn der Button ausgewählt ist, wähle ihn farblich aus
+                    // Wenn der Button ausgewählt ist, wähle ihn farblich aus
                     btn.classList.add('selected-double');
                 } else if (favoriteDoublesArray.length >= 3) {
-                    // 3. Wenn das Limit erreicht ist und der Button NICHT ausgewählt ist, deaktiviere ihn
+                    // Wenn das Limit erreicht ist und der Button NICHT ausgewählt ist, deaktiviere ihn
                     btn.classList.add('opacity-50', 'cursor-not-allowed');
                     // Entferne Hover-Effekte auf deaktivierten Buttons
                     btn.classList.remove('hover:bg-red-600'); 
