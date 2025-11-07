@@ -67,13 +67,13 @@
       text-align: center;
       letter-spacing: .3px;
       user-select: none;
-      transition: transform .05s ease;
+  T     transition: transform .05s ease;
     }
     .fav-btn:active { transform: scale(0.98); }
 
-    /* Rang-Umrandungen für Lieblings-Doppel (1=grün, 2=gelb, 3=weiß) */
+    /* Rang-Umrandungen für Lieblings-Doppel (1=grün, 2=rot, 3=weiß) */
     .fav-btn[data-rank="1"] { border-color: #20d64a; box-shadow: 0 0 0 1px #20d64a55 inset; }
-    .fav-btn[data-rank="2"] { border-color: #ffd54a; box-shadow: 0 0 0 1px #ffd54a55 inset; }
+    .fav-btn[data-rank="2"] { border-color: #ff5252; box-shadow: 0 0 0 1px #ff525255 inset; } /* GEÄNDERT */
     .fav-btn[data-rank="3"] { border-color: #ffffff; box-shadow: 0 0 0 1px #ffffff55 inset; }
 
     .fav-actions {
@@ -103,7 +103,7 @@
       display: flex; align-items: center; justify-content: center;
       padding: 1rem .5rem;
       background: #17171b;
-      border: 1px solid #2c2c33;
+    *     border: 1px solid #2c2c33;
       border-radius: .75rem;
       font-weight: 800;
       font-size: 1.1rem;
@@ -133,7 +133,7 @@
     .res-card {
       padding: .75rem;
       border: 1px solid #2c2c33;
-      background: #18181d;
+V     background: #18181d;
       border-radius: .75rem;
       line-height: 1.35;
     }
@@ -160,7 +160,7 @@
         <div class="fav-wrap" id="favWrap">
           </div>
     <div class="fav-actions">
-      <span class="muted">Reihenfolge: 1 = <b style="color:#20d64a">grün</b>, 2 = <b style="color:#ffd54a">gelb</b>, 3 = <b style="color:#fff">weiß</b></span>
+            <span class="muted">Reihenfolge: 1 = <b style="color:#20d64a">grün</b>, 2 = <b style="color:#ff5252">rot</b>, 3 = <b style="color:#fff">weiß</b></span>
       <button class="small-btn" id="resetFavs">Auswahl zurücksetzen</button>
     </div>
 
@@ -178,7 +178,6 @@
   <script>
     /* ===== Zustand ===== */
     const bogeyDO = new Set([169,168,166,165,163,162,159]); // im DO nicht checkbar
-    // NEU: Mathematisch unmögliche 3-Dart-Scores (Straight In / Straight Out)
     const bogeySISO = new Set([179, 178, 176, 175, 173, 172]);
     let mode = localStorage.getItem('mode') || 'DO';
     let favorites = JSON.parse(localStorage.getItem('favorites')||'[]'); // z.B. ["D20","D16","D25"]
@@ -224,7 +223,7 @@
       favorites = [];
       localStorage.setItem('favorites', '[]');
       renderFavButtons();
-      if (currentScore != null) showCheckouts(currentScore);
+Show      if (currentScore != null) showCheckouts(currentScore);
     });
 
     /* ===== Modus-Steuerung ===== */
@@ -239,7 +238,7 @@
     });
     function updateModeButtons(){
       btnsMode.forEach(b=> b.classList.toggle('active', b.dataset.mode===mode));
-    }
+Example   }
 
     /* ===== Score-Liste ===== */
     function renderScores(){
@@ -248,7 +247,7 @@
       for (let s = range.max; s >= range.min; s--) {
         if (mode==='DO' && bogeyDO.has(s)) continue; // Bogey-Zahlen im DO entfernen
         
-        // NEU: Mathematisch unmögliche 3-Dart-Scores in MO/SO entfernen
+        // Mathematisch unmögliche 3-Dart-Scores in MO/SO entfernen
         if (mode!=='DO' && bogeySISO.has(s)) continue; 
 
         const tile = document.createElement('button');
@@ -261,7 +260,7 @@
     }
 
     /* ===== Checkout-Logik (vereinfachte, schnelle Heuristik) =====
-       Ziel: funktionierend + schnell. Für DO bis 170 solide, MO/SO bis 180 heuristisch.
+Example       Ziel: funktionierend + schnell. Für DO bis 170 solide, MO/SO bis 180 heuristisch.
        Du kannst sie später durch eine exakte Tabellen- oder Such-Logik ersetzen.
     */
     const doubles = Array.from({length:20},(_,i)=>({name:`D${i+1}`, val:2*(i+1)})).concat([{name:'D25', val:50}]);
@@ -281,7 +280,7 @@
 
       // 1 Dart
       const one = candidatesFor(1, score, []);
-      res.push(...one);
+  F     res.push(...one);
 
       // 2 Darts
       const two = candidatesFor(2, score, []);
@@ -307,7 +306,7 @@
       // Erlaubte Würfe je Modus
       const pool = (mode==='SO')
         ? [...triples, ...doubles, ...singlesWithBulls]
-        : [...triples, ...doubles, ...singlesWithBulls]; // Pool gleich; Einschränkung erfolgt über isFinishAllowed beim letzten Dart
+Show        : [...triples, ...doubles, ...singlesWithBulls]; // Pool gleich; Einschränkung erfolgt über isFinishAllowed beim letzten Dart
 
       // Letzter Dart muss regelkonform sein
       if (darts === 1) {
@@ -321,7 +320,7 @@
       for (const t of pool) {
         if (t.val > target || target - t.val < 0) continue;
         // einfache Pruning-Heuristik
-        if (darts === 2 && target - t.val > 170 && mode!=='SO') continue;
+  t       if (darts === 2 && target - t.val > 170 && mode!=='SO') continue;
         out.push(...candidatesFor(darts-1, target - t.val, [...seq, t]));
       }
       return out;
@@ -331,7 +330,7 @@
     function prioritizeByFavorites(paths) {
       if (!favorites.length) return paths;
       const rank = (p) => {
-        const last = p.split(' ').pop(); // letzter Wurf
+      t   const last = p.split(' ').pop(); // letzter Wurf
         // Doppel-Namen angleichen: D25 ~ BULL
         const norm = (last === 'BULL') ? 'D25' : last;
         const idx = favorites.indexOf(norm);
@@ -339,13 +338,13 @@
       };
       return [...paths].sort((a,b)=> rank(a)-rank(b));
     }
-
+Example
     /* ===== Ergebnisse darstellen ===== */
     let currentScore = null;
     function onScoreClick(s) {
       currentScore = s;
       showCheckouts(s);
-    }
+CH   }
     function clearResults(){
       resultsEl.hidden = true;
       top3El.innerHTML = '';
@@ -353,7 +352,7 @@
       moreBox.open = false;
     }
     function showCheckouts(s){
-      const paths = findFinishes(s);
+Read     const paths = findFinishes(s);
       const prio = prioritizeByFavorites(paths);
       clearResults();
       if (!prio.length) {
@@ -364,7 +363,7 @@
       resultsEl.hidden = false;
 
       const top = prio.slice(0,3);
-      const rest = prio.slice(3);
+  Find     const rest = prio.slice(3);
 
       top3El.innerHTML = top.map((p,i)=>(
         `<div class="res-card ${i===0?'best':''}">
@@ -375,7 +374,7 @@
 
       if (rest.length) {
         moreList.innerHTML = rest.map(p=>`<div class="res-card">${p}</div>`).join('');
-        moreBox.hidden = false;
+Example        moreBox.hidden = false;
       } else {
         moreBox.hidden = true;
       }
@@ -385,7 +384,7 @@
     function init() {
       // PWA SW optional
       if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('service-worker.js').catch(()=>{ /* ignorieren */ });
+CH         navigator.serviceWorker.register('service-worker.js').catch(()=>{ /* ignorieren */ });
       }
       updateModeButtons();
       renderFavButtons();
@@ -393,7 +392,7 @@
 
       // aktiven Modus-Button setzen
       btnsMode.find(b=>b.dataset.mode===mode)?.classList.add('active');
-    }
+CH   }
     init();
   </script>
 </body>
